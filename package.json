@@ -1,0 +1,15 @@
+{
+  "name": "it3103_microservicesapi_exercise",
+  "version": "1.0.0",
+  "description": "IT 3103 Exercise 3: Microservices API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
