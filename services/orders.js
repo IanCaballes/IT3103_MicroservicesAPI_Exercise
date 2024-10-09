@@ -2,7 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const PORT = 3003;
-const authenticateToken = require('./middleware');
+const { authenticateToken, authorizeRoles  } = require('./middleware');
+const rateLimiter = require('./ratelimiter');
 const { body, param, validationResult } = require('express-validator');
 
 app.use(express.json());
@@ -14,7 +15,7 @@ let orders = [];
 app.post('/orders', [
     body('productId').isInt().withMessage('ID must be an integer'),
     body('userId').isInt().withMessage('ID must be an integer')
-], authorizeRoles('customer'), async (req, res) => {
+], authorizeRoles('customer'), rateLimiter, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -58,14 +59,14 @@ app.post('/orders', [
     }
 });
 
-app.get('/orders', authorizeRoles('admin'), (req, res) => {
+app.get('/orders', authorizeRoles('admin'), rateLimiter, (req, res) => {
     res.json(orders);
 });
 
 // read by id
 app.get('/orders/:id', [
     param('id').isInt().withMessage('ID must be an integer')
-], (req, res) => {
+], rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });

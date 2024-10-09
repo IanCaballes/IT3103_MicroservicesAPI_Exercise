@@ -1,9 +1,9 @@
 const express = require('express');
 const { body, param, validationResult } = require('express-validator');
-const rateLimit = require('express-rate-limit');
+const rateLimiter = require('./ratelimiter');
 const app = express();
 const PORT = 3001;
-const authenticateToken = require('./middleware');
+const { authenticateToken, authorizeRoles  } = require('./middleware');
 
 app.use(express.json());
 app.use(authenticateToken);
@@ -15,7 +15,7 @@ app.post('/products', [
     body('name').isString().trim().notEmpty().withMessage('Name is required'),
     body('price').isFloat({ gt: 0 }).withMessage('Price must be positive'),
     body('description').optional().isString().trim()
-], authorizeRoles('admin'), (req, res) => {
+], authorizeRoles('admin'), rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -26,14 +26,14 @@ app.post('/products', [
     res.status(201).json(product);
 });
 
-app.get('/products', (req, res) => {
+app.get('/products', rateLimiter, (req, res) => {
     res.json(products);
 });
 
 // read by id
 app.get('/products/:id', [
     param('id').isInt().withMessage('ID must be an integer')
-], (req, res) => {
+], rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -53,7 +53,7 @@ app.put('/products/:id', [
     body('name').optional().isString().trim().notEmpty().withMessage('Name is required'),
     body('price').optional().isFloat({ gt: 0 }).withMessage('Price must be positive'),
     body('description').optional().isString().trim()
-], authorizeRoles('admin'), (req, res) => {
+], authorizeRoles('admin'), rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -71,7 +71,7 @@ app.put('/products/:id', [
 // delete by id
 app.delete('/products/:id', [
     param('id').isInt().withMessage('ID must be an integer')
-], authorizeRoles('admin'), (req, res) => {
+], authorizeRoles('admin'), rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });

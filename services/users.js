@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit');
 const { body, validationResult, param } = require('express-validator');
+const rateLimiter = require('./ratelimiter');
 const app = express();
 const PORT = 3002;
 
@@ -13,12 +13,6 @@ let users = [
 ];
 
 const JWT_SECRET = 'yourSecretKey';
-
-const loginLimiter = rateLimit({ // rate limiter 15 mins 5 requests
-    windowMs: 15 * 60 * 1000,
-    max: 5,
-    message: { error: "Too many requests, try again later." }
-});
 
 // generate token
 function generateToken(user) {
@@ -32,7 +26,7 @@ function generateToken(user) {
 app.post('/login', [
     body('username').isString().trim().escape().notEmpty().withMessage('Username is required'),
     body('password').isString().trim().notEmpty().withMessage('Password is required')
-], loginLimiter, (req, res) => {
+], rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -52,7 +46,7 @@ app.post('/users', [
     body('username').isString().trim().escape().notEmpty().withMessage('Username is required'),
     body('password').isString().isLength({ min: 5 }).withMessage('Password must be at least 5 characters long'),
     body('role').isIn(['admin', 'customer']).withMessage('Role must be either admin or customer')
-], loginLimiter, (req, res) => {
+], rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -63,14 +57,14 @@ app.post('/users', [
     res.status(201).json(user);
 });
 
-app.get('/users', loginLimiter, (req, res) => {
+app.get('/users', rateLimiter, (req, res) => {
     res.json(users);
 });
 
 // read by id
 app.get('/users/:id', [
     param('id').isInt().withMessage('ID must be an integer')
-], loginLimiter, (req, res) => {
+], rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -90,7 +84,7 @@ app.put('/users/:id', [
     body('username').optional().isString().trim().escape(),
     body('password').optional().isString().isLength({ min: 5 }).withMessage('Pass must be 5 chars or more'),
     body('role').optional().isIn(['admin', 'customer']).withMessage('Role must be either admin or customer')
-], loginLimiter, (req, res) => {
+], rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -108,7 +102,7 @@ app.put('/users/:id', [
 // delete by id
 app.delete('/users/:id', [
     param('id').isInt().withMessage('ID must be an integer')
-], loginLimiter, (req, res) => {
+], rateLimiter, (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
