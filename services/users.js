@@ -1,5 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult, param } = require('express-validator');
 const app = express();
 const PORT = 3002;
 
@@ -12,6 +14,12 @@ let users = [
 
 const JWT_SECRET = 'yourSecretKey';
 
+const loginLimiter = rateLimit({ // rate limiter 15 mins 5 requests
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    message: { error: "Too many requests, try again later." }
+});
+
 // generate token
 function generateToken(user) {
     const payload = {
@@ -21,7 +29,14 @@ function generateToken(user) {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 }
 
-app.post('/login', (req, res) => {
+app.post('/login', [
+    body('username').isString().trim().escape().notEmpty().withMessage('Username is required'),
+    body('password').isString().trim().notEmpty().withMessage('Password is required')
+], loginLimiter, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
     const { username, password } = req.body;
     const user = users.find(u => u.username === username && u.password === password);
 
@@ -33,18 +48,34 @@ app.post('/login', (req, res) => {
 });
 
 // create
-app.post('/users', (req, res) => {
+app.post('/users', [
+    body('username').isString().trim().escape().notEmpty().withMessage('Username is required'),
+    body('password').isString().isLength({ min: 5 }).withMessage('Password must be at least 5 characters long'),
+    body('role').isIn(['admin', 'customer']).withMessage('Role must be either admin or customer')
+], loginLimiter, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const user = { id: users.length + 1, ...req.body };
     users.push(user);
     res.status(201).json(user);
 });
 
-app.get('/users', (req, res) => {
+app.get('/users', loginLimiter, (req, res) => {
     res.json(users);
 });
 
 // read by id
-app.get('/users/:id', (req, res) => {
+app.get('/users/:id', [
+    param('id').isInt().withMessage('ID must be an integer')
+], loginLimiter, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const user = users.find(c => c.id == req.params.id);
     if (user) {
         res.json(user);
@@ -54,9 +85,20 @@ app.get('/users/:id', (req, res) => {
 });
 
 // update by id
-app.get('/users/:id', (req, res) => {
+app.put('/users/:id', [
+    param('id').isInt().withMessage('ID must be an integer'),
+    body('username').optional().isString().trim().escape(),
+    body('password').optional().isString().isLength({ min: 5 }).withMessage('Pass must be 5 chars or more'),
+    body('role').optional().isIn(['admin', 'customer']).withMessage('Role must be either admin or customer')
+], loginLimiter, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const user = users.find(c => c.id == req.params.id);
     if (user) {
+        Object.assign(user, req.body);
         res.json(user);
     } else {
         res.status(404).json({ error: 'User doesnt exist' });
@@ -64,7 +106,14 @@ app.get('/users/:id', (req, res) => {
 });
 
 // delete by id
-app.delete('/users/:id', (req, res) => {
+app.delete('/users/:id', [
+    param('id').isInt().withMessage('ID must be an integer')
+], loginLimiter, (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const index = users.findIndex(c => c.id == req.params.id);
     if (index !== -1) {
         users.splice(index, 1);
