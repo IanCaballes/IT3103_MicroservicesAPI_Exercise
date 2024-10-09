@@ -2,8 +2,10 @@ const express = require('express');
 const axios = require('axios');
 const app = express();
 const PORT = 3003;
+const authenticateToken = require('./middleware');
 
 app.use(express.json());
+app.use(authenticateToken);
 
 let orders = [];
 

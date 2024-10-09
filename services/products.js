@@ -1,8 +1,10 @@
 const express = require('express');
 const app = express();
 const PORT = 3001;
+const authenticateToken = require('./middleware');
 
 app.use(express.json());
+app.use(authenticateToken);
 
 let products = [];
 

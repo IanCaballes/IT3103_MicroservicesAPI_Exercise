@@ -1,10 +1,36 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const app = express();
 const PORT = 3002;
 
 app.use(express.json());
 
-let users = [];
+let users = [
+    { id: 1, username: 'admin', password: 'adminpass', role: 'admin' },
+    { id: 2, username: 'customer', password: 'custpass', role: 'customer' }
+];
+
+const JWT_SECRET = 'yourSecretKey';
+
+// generate token
+function generateToken(user) {
+    const payload = {
+        id: user.id,
+        role: user.role,
+    };
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+}
+
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = users.find(u => u.username === username && u.password === password);
+
+    if (!user) {
+        return res.status(401).json({ error: 'Wrong user or pass' });
+    }
+    const token = generateToken(user);
+    res.json({ token });
+});
 
 // create
 app.post('/users', (req, res) => {
@@ -28,10 +54,9 @@ app.get('/users/:id', (req, res) => {
 });
 
 // update by id
-app.put('/users/:id', (req, res) => {
+app.get('/users/:id', (req, res) => {
     const user = users.find(c => c.id == req.params.id);
     if (user) {
-        Object.assign(user, req.body);
         res.json(user);
     } else {
         res.status(404).json({ error: 'User doesnt exist' });
