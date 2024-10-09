@@ -9,7 +9,7 @@ let orders = [];
 
 // create order
 app.post('/orders', async (req, res) => {
-    const { productId, customerId } = req.body;
+    const { productId, userId } = req.body;
 
     try {
         // check if product exists
@@ -25,21 +25,21 @@ app.post('/orders', async (req, res) => {
             }
         }
 
-        // check if customer exists
-        let customer;
+        // check if user exists
+        let user;
         try {
-            const customerResponse = await axios.get(`http://localhost:3002/customers/${customerId}`);
-            customer = customerResponse.data;
+            const userResponse = await axios.get(`http://localhost:3002/users/${userId}`);
+            user = userResponse.data;
         } catch (error) {
             if (error.response && error.response.status === 404) {
-                return res.status(404).json({ error: `Customer doesnt exist` });
+                return res.status(404).json({ error: `user doesnt exist` });
             } else {
-                return res.status(500).json({ error: 'Failed to retrieve customer' });
+                return res.status(500).json({ error: 'Failed to retrieve user' });
             }
         }
 
         //order if both exists
-        const order = { id: orders.length + 1, product, customer };
+        const order = { id: orders.length + 1, product, user };
         orders.push(order);
         res.status(201).json(order);
 

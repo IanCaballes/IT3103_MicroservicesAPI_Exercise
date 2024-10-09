@@ -1,0 +1,49 @@
+http:
+  port: 8080
+apiEndpoints:
+  products:
+    host: localhost
+    paths: /products/*
+  customers:
+    host: localhost
+    paths: /customers/*
+  orders:
+    host: localhost
+    paths: /orders/*
+
+serviceEndpoints:
+  products:
+    url: http://localhost:3001
+  customers:
+    url: http://localhost:3002
+  orders:
+    url: http://localhost:3003
+policies:
+  - basic-auth
+  - cors
+  - expression
+  - key-auth
+  - log
+  - oauth2
+  - proxy
+  - rate-limit
+  - jwt
+pipelines:
+  default:
+    apiEndpoints:
+      - products
+      - customers
+      - orders
+    policies:
+    # Uncomment `key-auth:` when instructed to in the Getting Started guide.
+    # - key-auth:
+      - proxy:
+          - action:
+              serviceEndpoint: '${apiEndpoint}'
+      - jwt:
+          - action:
+              secretOrPublicKey: 'your-secret-key'  # Change this to your secret key
+              checkCredentialExistence: true
+              credentialsRequired: true
+              algorithms:
+                - HS256
