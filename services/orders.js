@@ -22,15 +22,21 @@ app.post('/orders', [
     }
 
     const { productId, userId } = req.body;
+    const token = req.headers['authorization'];
+
     try {
         // check if product exists
         let product;
         try {
-            const productResponse = await axios.get(`http://localhost:3001/products/${productId}`);
+            const productResponse = await axios.get(`http://localhost:3001/products/${productId}`, {
+                headers: {
+                    'Authorization': token
+                }
+            });
             product = productResponse.data;
         } catch (error) {
             if (error.response && error.response.status === 404) {
-                return res.status(404).json({ error: `Product doesnt exist` });
+                return res.status(404).json({ error: 'Product doesnt exist' });
             } else {
                 return res.status(500).json({ error: 'Failed to retrieve product' });
             }
@@ -39,22 +45,32 @@ app.post('/orders', [
         // check if user exists
         let user;
         try {
-            const userResponse = await axios.get(`http://localhost:3002/users/${userId}`);
+            const userResponse = await axios.get(`http://localhost:3002/users/${userId}`, {
+                headers: {
+                    'Authorization': token
+                }
+            });
             user = userResponse.data;
+
+            // no password reveals >:(
+            if (user.password) {
+                delete user.password;
+            }
         } catch (error) {
             if (error.response && error.response.status === 404) {
-                return res.status(404).json({ error: `user doesnt exist` });
+                return res.status(404).json({ error: 'User doesnt exist' });
             } else {
                 return res.status(500).json({ error: 'Failed to retrieve user' });
             }
         }
 
-        //order if both exists
+        // if both product and user exist
         const order = { id: orders.length + 1, product, user };
         orders.push(order);
         res.status(201).json(order);
 
     } catch (error) {
+        console.error('Order creation failed:', error);
         res.status(500).json({ error: 'I dont know why this failed' });
     }
 });

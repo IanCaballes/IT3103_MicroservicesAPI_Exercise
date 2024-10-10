@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { body, validationResult, param } = require('express-validator');
 const rateLimiter = require('./ratelimiter');
 const app = express();
@@ -26,17 +27,24 @@ function generateToken(user) {
 app.post('/login', [
     body('username').isString().trim().escape().notEmpty().withMessage('Username is required'),
     body('password').isString().trim().notEmpty().withMessage('Password is required')
-], rateLimiter, (req, res) => {
+], rateLimiter, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
+
     const { username, password } = req.body;
-    const user = users.find(u => u.username === username && u.password === password);
+    const user = users.find(u => u.username === username);
 
     if (!user) {
         return res.status(401).json({ error: 'Wrong user or pass' });
     }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Wrong user or pass' });
+    }
+
     const token = generateToken(user);
     res.json({ token });
 });
@@ -46,19 +54,26 @@ app.post('/users', [
     body('username').isString().trim().escape().notEmpty().withMessage('Username is required'),
     body('password').isString().isLength({ min: 5 }).withMessage('Password must be at least 5 characters long'),
     body('role').isIn(['admin', 'customer']).withMessage('Role must be either admin or customer')
-], rateLimiter, (req, res) => {
+], rateLimiter, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
-    const user = { id: users.length + 1, ...req.body };
+    // encrypt passwords
+    const hashedPass = await bcrypt.hash(req.body.password, 10);
+
+    const user = { id: users.length + 1, username: req.body.username, password: hashedPass, role: req.body.role };
     users.push(user);
-    res.status(201).json(user);
+    res.status(201).json({ id: user.id, username: user.username, role: user.role });
 });
 
 app.get('/users', rateLimiter, (req, res) => {
-    res.json(users);
+    const safeUsers = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+    });
+    res.json(safeUsers);
 });
 
 // read by id
@@ -72,7 +87,8 @@ app.get('/users/:id', [
 
     const user = users.find(c => c.id == req.params.id);
     if (user) {
-        res.json(user);
+        const { password, ...userWithoutPassword } = user;
+        res.json(userWithoutPassword);
     } else {
         res.status(404).json({ error: 'User doesnt exist' });
     }
